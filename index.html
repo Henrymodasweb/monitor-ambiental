@@ -365,7 +365,7 @@
     async function atualizarQualidadeAr() {
       try {
         const token = "7766dec16c1541162823595e65ced90e8a65fab6";
-        const url = `https://api.waqi.info/feed/@338/?token=${token}`;
+        const url = `https://api.waqi.info/feed/@348/?token=${token}`;
 
         const resposta = await fetch(url);
         const dados = await resposta.json();
@@ -378,7 +378,7 @@
         }
 
         const aqi = dados.data.aqi;
-        const estacao = dados.data.city.name || "Congonhas, São Paulo";
+        const estacao = dados.data.city.name || "Itaquera, São Paulo";
 
         document.getElementById("aqi-valor").textContent = aqi;
         document.getElementById("aqi-estacao").textContent = estacao;
