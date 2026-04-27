@@ -1,99 +1,483 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Henry Modas | Monitor Ambiental Comunitário</title>
 
-// Coloque aqui o nome e a senha do Wi-Fi
-const char* ssid = "R2D2";
-const char* password = "RogueOne01*";
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-// Chave do ThingSpeak para enviar dados
-const char* writeAPIKey = "AAYOJ0HC2YRZZ9ZF";
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #222;
+      line-height: 1.6;
+    }
 
-Adafruit_BME280 bme;
+    header {
+      background: #123d73;
+      color: white;
+      text-align: center;
+      padding: 32px 20px;
+    }
 
-bool sensorEncontrado = false;
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+    }
 
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
+    header h2 {
+      font-size: 1.5rem;
+      font-weight: normal;
+      margin-bottom: 16px;
+    }
 
-  Serial.println("Iniciando sistema...");
+    header p {
+      max-width: 900px;
+      margin: 0 auto;
+      font-size: 1rem;
+    }
 
-  // Tenta encontrar o sensor no endereço 0x76
-  if (bme.begin(0x76)) {
-    sensorEncontrado = true;
-    Serial.println("Sensor BME280 encontrado no endereco 0x76.");
-  } 
-  // Se não encontrar, tenta no endereço 0x77
-  else if (bme.begin(0x77)) {
-    sensorEncontrado = true;
-    Serial.println("Sensor BME280 encontrado no endereco 0x77.");
-  } 
-  else {
-    Serial.println("ERRO: sensor BME280 nao encontrado.");
-    Serial.println("Verifique os fios VIN, GND, SCL e SDA.");
-    while (1);
-  }
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
 
-  WiFi.begin(ssid, password);
-  Serial.println("Conectando ao Wi-Fi...");
+    .card {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      padding: 24px;
+      margin-bottom: 22px;
+    }
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Tentando conectar...");
-  }
+    .card h3 {
+      margin-bottom: 14px;
+      color: #123d73;
+      font-size: 1.5rem;
+    }
 
-  Serial.println("Wi-Fi conectado!");
-  Serial.print("IP do ESP32: ");
-  Serial.println(WiFi.localIP());
-}
+    .banner-loja {
+      width: 100%;
+      border-radius: 12px;
+      display: block;
+    }
 
-void loop() {
-  if (WiFi.status() == WL_CONNECTED && sensorEncontrado) {
-    float temperatura = bme.readTemperature();
-    float umidade = bme.readHumidity();
-    float pressao = bme.readPressure() / 100.0F;
+    .grid-dados {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
 
-    String url = "http://api.thingspeak.com/update?api_key=";
-    url += writeAPIKey;
-    url += "&field1=" + String(temperatura, 1);
-    url += "&field2=" + String(umidade, 1);
-    url += "&field3=" + String(pressao, 1);
+    .dado-box {
+      background: #f8fafc;
+      border-left: 6px solid #123d73;
+      border-radius: 10px;
+      padding: 18px;
+    }
 
-    HTTPClient http;
-    http.begin(url);
+    .dado-box h4 {
+      margin-bottom: 8px;
+      color: #123d73;
+    }
 
-    int httpCode = http.GET();
-    String resposta = http.getString();
+    .valor {
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
 
-    Serial.println("------------------------------");
-    Serial.println("Enviando dados para ThingSpeak...");
+    .explicacao h4 {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: #123d73;
+    }
 
-    Serial.print("HTTP Code: ");
-    Serial.println(httpCode);
+    ul {
+      margin: 10px 0 10px 20px;
+    }
 
-    Serial.print("Resposta ThingSpeak: ");
-    Serial.println(resposta);
+    li {
+      margin-bottom: 6px;
+    }
 
-    Serial.print("Temperatura: ");
-    Serial.print(temperatura, 1);
-    Serial.println(" C");
+    .aqi-status {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      margin-top: 10px;
+    }
 
-    Serial.print("Umidade: ");
-    Serial.print(umidade, 1);
-    Serial.println(" %");
+    .fonte-box {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 12px;
+    }
 
-    Serial.print("Pressao: ");
-    Serial.print(pressao, 1);
-    Serial.println(" hPa");
+    footer {
+      text-align: center;
+      padding: 24px;
+      background: #123d73;
+      color: white;
+      margin-top: 30px;
+    }
 
-    http.end();
-  } else {
-    Serial.println("Wi-Fi desconectado. Tentando reconectar...");
-    WiFi.begin(ssid, password);
-  }
+    .muted {
+      color: #555;
+    }
 
-  delay(20000);
-}
+    .atualizacao {
+      margin-top: 14px;
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 1.9rem;
+      }
+
+      header h2 {
+        font-size: 1.2rem;
+      }
+
+      .valor {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Henry Modas</h1>
+    <h2>Monitor Ambiental Comunitário</h2>
+    <p>
+      A Henry Modas disponibiliza este espaço de monitoramento ambiental à comunidade,
+      por meio de sistema instalado no estabelecimento.
+    </p>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <img src="banner-henry-modas.jpeg" alt="Banner da loja Henry Modas" class="banner-loja">
+    </section>
+
+    <section class="card">
+      <h3>Por que acompanhar este site?</h3>
+      <p>
+        Muitas vezes, as pessoas só percebem a importância das condições do ambiente quando já estão em situação de desconforto,
+        como em casos de calor excessivo, ar seco, irritação ou piora do bem-estar.
+      </p>
+      <br>
+      <p>
+        No dia a dia, informações como temperatura, umidade do ar e qualidade do ar nem sempre são acompanhadas com frequência.
+        Com isso, atitudes simples acabam sendo tomadas apenas quando a situação já se agravou.
+      </p>
+      <br>
+      <p>
+        Este site foi criado para facilitar o acesso a essas informações de forma clara e acessível, permitindo maior atenção
+        às condições do ambiente antes do surgimento de desconfortos.
+      </p>
+      <br>
+      <p>
+        O objetivo não é realizar diagnóstico, mas oferecer informações úteis para o cotidiano, ajudando a comunidade a acompanhar
+        o ambiente e adotar cuidados gerais quando necessário.
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>Como isso pode ajudar no dia a dia?</h3>
+      <p>
+        O acompanhamento das condições ambientais pode auxiliar na adoção de cuidados simples, como hidratação, ventilação do ambiente
+        e adaptação de hábitos conforme a situação do clima e da qualidade do ar.
+      </p>
+      <br>
+      <p>
+        Isso pode ser útil especialmente para pessoas que já sabem que possuem maior sensibilidade às variações do ambiente,
+        bem como no cuidado com crianças, idosos e animais domésticos.
+      </p>
+      <br>
+      <p>
+        Dessa forma, o site e o monitor ajudam a transformar dados ambientais em informação acessível, contribuindo para decisões
+        cotidianas mais conscientes.
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>🌡️ Leitura ambiental do monitor</h3>
+      <p class="muted">
+        Abaixo são apresentados os dados coletados pelo sistema de monitoramento instalado no local.
+      </p>
+
+      <div class="grid-dados">
+        <div class="dado-box">
+          <h4>🌡️ Temperatura</h4>
+          <div class="valor" id="temp">Carregando...</div>
+        </div>
+
+        <div class="dado-box">
+          <h4>💧 Umidade do ar</h4>
+          <div class="valor" id="umid">Carregando...</div>
+        </div>
+
+        <div class="dado-box">
+          <h4>Pressão atmosférica</h4>
+          <div class="valor" id="press">Carregando...</div>
+        </div>
+      </div>
+
+      <p class="atualizacao" id="monitor-atualizacao">
+        Buscando dados do monitor...
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>🏙️ Qualidade do ar em São Paulo</h3>
+      <p>
+        Esta informação complementa o monitoramento local e ajuda a entender melhor as condições ambientais da cidade.
+      </p>
+
+      <div style="margin-top: 16px;">
+        <p><strong>AQI:</strong> <span id="aqi-valor">Carregando...</span></p>
+        <p><strong>Estação:</strong> <span id="aqi-estacao">Carregando...</span></p>
+        <div id="aqi-status" class="aqi-status" style="background-color:#666;">Carregando...</div>
+      </div>
+    </section>
+
+    <section class="card explicacao">
+      <h3>Como entender os dados do monitor</h3>
+
+      <h4>🌡️ Temperatura</h4>
+      <p>A temperatura indica o nível de aquecimento do ambiente.</p>
+      <ul>
+        <li><strong>Até 20°C:</strong> clima mais ameno</li>
+        <li><strong>Entre 21°C e 27°C:</strong> faixa confortável</li>
+        <li><strong>Acima de 28°C:</strong> maior sensação de calor</li>
+        <li><strong>Acima de 32°C:</strong> exige mais atenção</li>
+      </ul>
+
+      <h4>💧 Umidade do ar</h4>
+      <p>A umidade indica a quantidade de vapor de água presente no ar.</p>
+      <ul>
+        <li><strong>Acima de 60%:</strong> ar mais úmido</li>
+        <li><strong>Entre 40% e 60%:</strong> faixa confortável</li>
+        <li><strong>Abaixo de 40%:</strong> ar seco</li>
+        <li><strong>Abaixo de 30%:</strong> maior atenção</li>
+      </ul>
+
+      <h4>Pressão atmosférica</h4>
+      <p>A pressão acompanha as condições gerais do tempo.</p>
+      <ul>
+        <li><strong>Valores estáveis:</strong> menor variação</li>
+        <li><strong>Mudanças maiores:</strong> possíveis mudanças no clima</li>
+      </ul>
+
+      <h4>🏙️ Qualidade do ar</h4>
+      <p>
+        A qualidade do ar é apresentada como informação complementar e pode indicar condições mais favoráveis
+        ou que exigem maior atenção no dia a dia.
+      </p>
+      <ul>
+        <li>🟢 <strong>Boa:</strong> condição mais favorável</li>
+        <li>🟡 <strong>Moderada:</strong> atenção leve, especialmente para pessoas mais sensíveis</li>
+        <li>🟠 <strong>Ruim para grupos sensíveis:</strong> maior atenção para quem costuma sentir desconfortos respiratórios</li>
+        <li>🔴 <strong>Ruim:</strong> recomenda mais cuidado com exposição prolongada</li>
+        <li>🟣 <strong>Muito ruim:</strong> condição mais crítica, exige maior atenção</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h3>Como observar os dados em conjunto</h3>
+      <p>O mais importante não é analisar um dado isoladamente, mas sim o conjunto:</p>
+      <ul>
+        <li><strong>temperatura alta + umidade baixa</strong> → maior sensação de calor e ressecamento</li>
+        <li><strong>umidade baixa + qualidade do ar desfavorável</strong> → maior atenção</li>
+        <li><strong>condições equilibradas</strong> → maior conforto</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h3>Cuidados gerais</h3>
+      <p>
+        Quando os dados indicarem calor intenso, ar seco ou piora na qualidade do ar, algumas atitudes simples podem ajudar:
+      </p>
+      <ul>
+        <li>manter boa hidratação ao longo do dia</li>
+        <li>manter o ambiente ventilado</li>
+        <li>evitar ambientes muito fechados</li>
+        <li>observar sinais de desconforto</li>
+        <li>redobrar a atenção com crianças, idosos e pessoas mais sensíveis</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h3>🩺 Quando procurar orientação profissional?</h3>
+      <p>
+        As informações deste site têm caráter informativo e educativo.
+      </p>
+      <br>
+      <p>
+        Elas ajudam na observação das condições ambientais, mas não substituem avaliação profissional.
+      </p>
+      <br>
+      <p>
+        Em caso de desconfortos persistentes ou necessidade de orientação específica, recomenda-se buscar atendimento
+        em uma Unidade Básica de Saúde (UBS) ou outro serviço de saúde da região.
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>Comércio local parceiro</h3>
+      <p>
+        Este projeto também integra uma ação de prestação de serviço, com a implantação de um sistema de monitoramento
+        ambiental e a disponibilização gratuita de presença digital para o estabelecimento parceiro.
+      </p>
+      <br>
+      <p>
+        Dessa forma, a comunidade tem acesso a informações úteis sobre o ambiente, enquanto o comércio local amplia sua
+        visibilidade por meio do site.
+      </p>
+    </section>
+
+    <section class="card">
+      <h3>Fontes e orientações gerais</h3>
+      <div class="fonte-box">
+        <p>
+          Para orientações complementares, recomenda-se a consulta a fontes públicas e confiáveis de saúde e meio ambiente.
+        </p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>⚠️ Aviso importante</h3>
+      <p>
+        As informações deste site têm caráter informativo e educativo e não substituem orientação profissional de saúde.
+      </p>
+    </section>
+
+  </main>
+
+  <footer>
+    Projeto de monitoramento ambiental com foco em informação local, bem-estar e apoio à comunidade.
+  </footer>
+
+  <script>
+    async function atualizarQualidadeAr() {
+      try {
+        const token = "7766dec16c1541162823595e65ced90e8a65fab6";
+        const url = `https://api.waqi.info/feed/@348/?token=${token}`;
+
+        const resposta = await fetch(url);
+        const dados = await resposta.json();
+
+        if (dados.status !== "ok") {
+          document.getElementById("aqi-valor").textContent = "Indisponível";
+          document.getElementById("aqi-estacao").textContent = "Não foi possível carregar";
+          document.getElementById("aqi-status").textContent = "Erro";
+          return;
+        }
+
+        const aqi = dados.data.aqi;
+        const estacao = dados.data.city.name || "Itaquera, São Paulo";
+
+        document.getElementById("aqi-valor").textContent = aqi;
+        document.getElementById("aqi-estacao").textContent = estacao;
+
+        const statusEl = document.getElementById("aqi-status");
+        statusEl.style.color = "#fff";
+
+        if (aqi <= 50) {
+          statusEl.textContent = "Boa";
+          statusEl.style.backgroundColor = "#009966";
+        } else if (aqi <= 100) {
+          statusEl.textContent = "Moderada";
+          statusEl.style.backgroundColor = "#ffde33";
+          statusEl.style.color = "#000";
+        } else if (aqi <= 150) {
+          statusEl.textContent = "Ruim para grupos sensíveis";
+          statusEl.style.backgroundColor = "#ff9933";
+        } else if (aqi <= 200) {
+          statusEl.textContent = "Ruim";
+          statusEl.style.backgroundColor = "#cc0033";
+        } else {
+          statusEl.textContent = "Muito ruim";
+          statusEl.style.backgroundColor = "#660099";
+        }
+      } catch (erro) {
+        document.getElementById("aqi-valor").textContent = "Erro";
+        document.getElementById("aqi-estacao").textContent = "Erro ao carregar";
+        document.getElementById("aqi-status").textContent = "Erro";
+        console.error("Erro ao buscar qualidade do ar:", erro);
+      }
+    }
+
+    async function atualizarMonitor() {
+      try {
+        const channelId = "3355800";
+        const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=1`;
+
+        const resposta = await fetch(url);
+        const dados = await resposta.json();
+
+        const feed = dados.feeds && dados.feeds[0];
+
+        if (!feed) {
+          document.getElementById("temp").textContent = "-- °C";
+          document.getElementById("umid").textContent = "-- %";
+          document.getElementById("press").textContent = "-- hPa";
+          document.getElementById("monitor-atualizacao").textContent =
+            "Ainda não há dados disponíveis do monitor.";
+          return;
+        }
+
+        const temperatura = feed.field1 ? parseFloat(feed.field1).toFixed(1).replace(".", ",") : "--";
+        const umidade = feed.field2 ? parseFloat(feed.field2).toFixed(1).replace(".", ",") : "--";
+        const pressao = feed.field3 ? parseFloat(feed.field3).toFixed(1).replace(".", ",") : "--";
+
+        document.getElementById("temp").textContent = temperatura + " °C";
+        document.getElementById("umid").textContent = umidade + " %";
+        document.getElementById("press").textContent = pressao + " hPa";
+
+        if (feed.created_at) {
+          const data = new Date(feed.created_at);
+          const dataFormatada = data.toLocaleString("pt-BR");
+
+          document.getElementById("monitor-atualizacao").textContent =
+            "Última atualização do monitor: " + dataFormatada;
+        } else {
+          document.getElementById("monitor-atualizacao").textContent =
+            "Dados atualizados pelo monitor ambiental.";
+        }
+
+      } catch (erro) {
+        document.getElementById("temp").textContent = "Erro";
+        document.getElementById("umid").textContent = "Erro";
+        document.getElementById("press").textContent = "Erro";
+        document.getElementById("monitor-atualizacao").textContent =
+          "Não foi possível carregar os dados do monitor neste momento.";
+
+        console.error("Erro ao buscar dados do monitor:", erro);
+      }
+    }
+
+    atualizarQualidadeAr();
+    setInterval(atualizarQualidadeAr, 600000);
+
+    atualizarMonitor();
+    setInterval(atualizarMonitor, 20000);
+  </script>
+
+</body>
+</html>
